@@ -8,7 +8,7 @@ Created on Mon Aug 12 09:42:28 2024
 #this is chatGPT's way of creating the comparison.svg file
 #certain valeus (like width) will need to be changed to match the images being loaded
 #just use this to understand how you would generate the .xml file in python, DONT JUST COPY AND PASTE
-
+#test comment
 
 #the px : mm conversion is 1 : 0.26458333 or 480px/127mm
 pxTOmm = 480/127
