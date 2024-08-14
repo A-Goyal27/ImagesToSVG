@@ -18,7 +18,7 @@ import time
 start = time.time()
 
 """
-INPUT AND FILE STUFF
+INPUT
 -inputFolder should take in the directory of the folder that contains the images that will be compared
     -it cannot specify which images to compare so the folder must ONLY contain the images that will be compared
 """
@@ -26,6 +26,9 @@ inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 #the files in the folder should have some some order ("abc", "123", etc.)
 #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless testInput\ is added, out\ wasn't needed for the other ones
 
+"""
+FILE STUFF
+"""
 #getting a list of the directories to the images
 imagePaths = []
 for name in os.listdir(inputFolder):
@@ -44,6 +47,7 @@ def getFileName(filepath):
 """
 CREATING IMAGES FOR SVG
 """
+#creates the main images
 x, y = 0, 0
 for img in imagePaths:
     #gets the size of the image
@@ -155,7 +159,13 @@ for img in mainImages:
 
 #display the file path/image name over the image
 for img in mainImages:
-    textVal = {"x": str(float(img["x"])+2), "y":str(float(img["y"])-10), "font_family":"Arial", "font-size":str(12/pxTOmm), "fill":"black", "textLength":str(float(img["width"])-2), "lengthAdjust":"spacingAndGlyphs"}
+    textVal = {"x": str(float(img["x"])+2), 
+               "y":str(float(img["y"])-10), 
+               "font_family":"Arial", 
+               "font-size":str(12/pxTOmm), 
+               "fill":"black", 
+               "textLength":str(float(img["width"])-2), 
+               "lengthAdjust":"spacingAndGlyphs"}
     textToAdd = ET.SubElement(layer, "text", textVal)
     textToAdd.text = getFileName(img["xlink:href"])
 
@@ -191,5 +201,6 @@ xml_str = ET.tostring(svg, encoding='utf-8', method='xml').decode('utf-8')
 with open('generated_comparison.svg', 'w') as f:
     f.write(xml_str)
 
+#displays the amount of time the program took to run, also acts as a way to see if the program ran successfully
 end = time.time()
 print(f"Took {end-start} seconds to run.")
