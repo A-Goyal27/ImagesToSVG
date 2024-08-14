@@ -26,6 +26,10 @@ inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 #the files in the folder should have some some order ("abc", "123", etc.)
 #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless testInput\ is added, out\ wasn't needed for the other ones
 
+#where to zoom and how much to zoom in
+zoomXpos, zoomYpos = 50, 95 #pixels
+zoomWidth, zoomHeight = 100, 100 #pixels
+
 """
 FILE STUFF
 """
@@ -36,42 +40,56 @@ for name in os.listdir(inputFolder):
     
 imagePaths = sorted(imagePaths)
 
-#imagesToInput = ['testInput/zerofill_echo_0_120.png', 'jony/b_psnr_echo_0_120.png', 'johny/ssim_echo_0_120_crop2.png', 'psnr_ssim_echo_0_120_crop2.png', 'gt_echo_0_120_crop2.png'] 
-#takes in file paths for the images
-mainImages = [] #empty list for the images that will be displayed
-
 def getFileName(filepath):
     return os.path.basename(filepath).split('/')[-1]
 #gets the filename because that is needed for the xlink:href in the svg
 
 """
-CREATING IMAGES FOR SVG
+CREATING MAIN IMAGES FOR SVG
 """
 #creates the main images
-x, y = 0, 0
+mainImages = [] #empty list for the images that will be displayed
+main_x, main_y = 0, 0
 for img in imagePaths:
     #gets the size of the image
     image = Image.open(img)
-    width, height = image.size
+    imgWidth, imgHeight = image.size
     
-    imgDict = {'width': str(width/pxTOmm), 
-               'height': str(height/pxTOmm), 
+    imgDict = {'width': str(imgWidth/pxTOmm), 
+               'height': str(imgHeight/pxTOmm), 
                'xlink:href':  getFileName(inputFolder) + "\\" + getFileName(img), #fixes the issue described under inputFolder, should work for everything
-               'x': str(x), 
-               'y': str(y), 
+               'x': str(main_x), 
+               'y': str(main_y), 
                "preserve_aspect_ratio":"none"}
     #each image is represented as a dictionary of its attributes
     mainImages.append(imgDict) #add the image to the list
-    x+=float(imgDict["width"]) #increase the x position but NOT the y position
+    main_x+=float(imgDict["width"]) #increase the x position but NOT the y position
 
+"""
+CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
+"""
+#crop the image - does the cropped image need to be saved or no?
+def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
+    image = Image.open(imgFilepath)
+    crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
+    return image.crop(crop_area)
+    
+#the width and height should not = the width and height of the cropped image as that will be too small, it should be based on the crop tho, like 2x or smthn
 zoomedImages = [
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/zerofill_echo_0_120_crop.png', 'x': '15.875', 'y': mainImages[0]['height']}, #the y val should = the height of the main images
+    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/zerofill_echo_0_120_crop.png', 'x': '15.875', 'y': mainImages[0]['height']}, 
+    #the y val should = the height of the main images, and 15.875 is 1/3 of 47.625
     {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_echo_0_120_crop.png', 'x': '63.5', 'y': mainImages[0]['height']},
     {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/ssim_echo_0_120_crop.png', 'x': '111.125', 'y': mainImages[0]['height']},
     {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_ssim_echo_0_120_crop.png', 'x': '158.75', 'y': mainImages[0]['height']},
     {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/gt_echo_0_120_crop.png', 'x': '206.375', 'y': mainImages[0]['height']},
     ]
-#in the future it might be relevant if the only input is the main image file path
+
+#creating the red rectangles that show what part of the image was cropped
+zoomWindows = []
+xOffset = mainImages[0]["width"] #where to put the next box so it is in the same place as the previous image
+for i in range(len(imagePaths)):
+    window = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), "y": str(zoomYpos/pxTOmm)} 
+    zoomWindows.append(window)
 
 """
 TOTAL WIDTH AND HEIGHT
@@ -152,10 +170,8 @@ ADDING TO THE LAYER
 for img in mainImages:
     ET.SubElement(layer, 'image', img)
     
-# =============================================================================
-# for img in zoomedImages:
-#     ET.SubElement(layer, "image", img)
-# =============================================================================
+for img in zoomedImages:
+    ET.SubElement(layer, "image", img)
 
 #display the file path/image name over the image
 for img in mainImages:
@@ -169,18 +185,8 @@ for img in mainImages:
     textToAdd = ET.SubElement(layer, "text", textVal)
     textToAdd.text = getFileName(img["xlink:href"])
 
-
-# List of rectangles with their attributes
-rectangles = [
-    {'x': '18.141666', 'y': '18.141666'},
-    {'x': '66.29583', 'y': '18.141666'},
-    {'x': '113.92083', 'y': '18.141666'},
-    {'x': '161.54584', 'y': '18.141666'},
-    {'x': '209.17084', 'y': '18.141666'},
-]
-
 # Add rectangles to the layer
-for rect in rectangles:
+for rect in zoomWindows:
     ET.SubElement(layer, 'rect', {
         'style': 'fill:none;stroke:#ff0032;stroke-width:0.3',
         'width': '17.197916',
