@@ -8,37 +8,31 @@ Created on Mon Aug 12 09:42:28 2024
 #this is chatGPT's way of creating the comparison.svg file
 #certain valeus (like width) will need to be changed to match the images being loaded
 #just use this to understand how you would generate the .xml file in python, DONT JUST COPY AND PASTE
-#test comment
 
 #the px : mm conversion is 1 : 0.26458333 or 480px/127mm
 pxTOmm = 480/127
 
 import xml.etree.ElementTree as ET
 
-# List of images with their attributes
-mainImages = [
-    {'width': '47.625', 'height': '47.625', 'xlink:href': 'out/zerofill_echo_0_120_crop2.png', 'x': '0', 'y': '0'},
-    #{'width': '31.75', 'height': '31.75', 'xlink:href': 'out/zerofill_echo_0_120_crop.png', 'x': '15.875', 'y': '47.625'},
-    {'width': '47.625', 'height': '47.625', 'xlink:href': 'out/psnr_echo_0_120_crop2.png', 'x': '47.625', 'y': '0'},
-    #{'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_echo_0_120_crop.png', 'x': '63.5', 'y': '47.625'},
-    {'width': '47.625', 'height': '47.625', 'xlink:href': 'out/ssim_echo_0_120_crop2.png', 'x': '95.25', 'y': '0'},
-    #{'width': '31.75', 'height': '31.75', 'xlink:href': 'out/ssim_echo_0_120_crop.png', 'x': '111.125', 'y': '47.625'},
-    {'width': '47.625', 'height': '47.625', 'xlink:href': 'out/psnr_ssim_echo_0_120_crop2.png', 'x': '142.875', 'y': '0'},
-    #{'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_ssim_echo_0_120_crop.png', 'x': '158.75', 'y': '47.625'},
-    {'width': '47.625', 'height': '47.625', 'xlink:href': 'out/gt_echo_0_120_crop2.png', 'x': '190.5', 'y': '0'},
-    #{'width': '31.75', 'height': '31.75', 'xlink:href': 'out/gt_echo_0_120_crop.png', 'x': '206.375', 'y': '47.625'},
-]
-#the width and height of the image just changes the size, not the zoom so that information is not needed
-#each image is represented as a dictionary of its attributes
+imagesToInput = ['out/zerofill_echo_0_120_crop2.png', 'out/psnr_echo_0_120_crop2.png', 'out/ssim_echo_0_120_crop2.png', 'out/psnr_ssim_echo_0_120_crop2.png', 'out/gt_echo_0_120_crop2.png'] 
+#takes in file paths for the images
+mainImages = [] #empty list for the images that will be displayed
+
+x, y = 0, 0
+for img in imagesToInput:
+    imgDict = {'width': '47.625', 'height': '47.625', 'xlink:href': img, 'x': str(x), 'y': str(y), "preserve_aspect_ratio":"none"} #set all images to the 180px by 180px
+    #the width and height of the image just changes the size, not the zoom so that information is not needed
+    #each image is represented as a dictionary of its attributes
+    mainImages.append(imgDict) #add the image to the list
+    x+=float(imgDict["width"]) #increase the x position but NOT the y position
 
 zoomedImages = [
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/zerofill_echo_0_120_crop.png', 'x': '15.875', 'y': '47.625'}, #the y val should = the height of the main images
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_echo_0_120_crop.png', 'x': '63.5', 'y': '47.625'},
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/ssim_echo_0_120_crop.png', 'x': '111.125', 'y': '47.625'},
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_ssim_echo_0_120_crop.png', 'x': '158.75', 'y': '47.625'},
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/gt_echo_0_120_crop.png', 'x': '206.375', 'y': '47.625'},
+    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/zerofill_echo_0_120_crop.png', 'x': '15.875', 'y': mainImages[0]['height']}, #the y val should = the height of the main images
+    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_echo_0_120_crop.png', 'x': '63.5', 'y': mainImages[0]['height']},
+    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/ssim_echo_0_120_crop.png', 'x': '111.125', 'y': mainImages[0]['height']},
+    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_ssim_echo_0_120_crop.png', 'x': '158.75', 'y': mainImages[0]['height']},
+    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/gt_echo_0_120_crop.png', 'x': '206.375', 'y': mainImages[0]['height']},
     ]
-#split into main and zoom to see if it works
 #in the future it might be relevant if the only input is the main image file path
 
 #finding the total width and height based on the images given
@@ -56,7 +50,10 @@ def totalHeight(mainImg, zoomImg):
     
     sumHeight *= pxTOmm
     return sumHeight
-    
+
+print(f"Total Width: {totalWidth(mainImages)}")
+print(f"Total Height: {totalHeight(mainImages, zoomedImages)}")
+
 # Create the root element
 svg = ET.Element('svg', {
     'width': str(totalWidth(mainImages)),
@@ -108,6 +105,12 @@ for img in mainImages:
     
 for img in zoomedImages:
     ET.SubElement(layer, "image", img)
+    
+for img in mainImages:
+    textVal = {"x": str(float(img["x"])+2), "y":str(float(img["y"])-10), "font_family":"Arial", "font-size":str(12/pxTOmm), "fill":"black", "textLength":str(float(img["width"])-2)}
+    textToAdd = ET.SubElement(layer, "text", textVal)
+    textToAdd.text = img["xlink:href"]
+
 
 # List of rectangles with their attributes
 rectangles = [
