@@ -5,23 +5,57 @@ Created on Mon Aug 12 09:42:28 2024
 @author: aayan
 """
 
-#this is chatGPT's way of creating the comparison.svg file
-#certain valeus (like width) will need to be changed to match the images being loaded
-#just use this to understand how you would generate the .xml file in python, DONT JUST COPY AND PASTE
-
+"""
+PACKAGES AND CONSTANTS
+"""
 #the px : mm conversion is 1 : 0.26458333 or 480px/127mm
 pxTOmm = 480/127
 
 import xml.etree.ElementTree as ET
+import os
+from PIL import Image
+import time
+start = time.time()
 
-imagesToInput = ['out/zerofill_echo_0_120_crop2.png', 'out/psnr_echo_0_120_crop2.png', 'out/ssim_echo_0_120_crop2.png', 'out/psnr_ssim_echo_0_120_crop2.png', 'out/gt_echo_0_120_crop2.png'] 
+"""
+INPUT AND FILE STUFF
+-inputFolder should take in the directory of the folder that contains the images that will be compared
+    -it cannot specify which images to compare so the folder must ONLY contain the images that will be compared
+"""
+inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
+#the files in the folder should have some some order ("abc", "123", etc.)
+#however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless testInput\ is added, out\ wasn't needed for the other ones
+
+#getting a list of the directories to the images
+imagePaths = []
+for name in os.listdir(inputFolder):
+    imagePaths.append(os.path.join(inputFolder, name))
+    
+imagePaths = sorted(imagePaths)
+
+#imagesToInput = ['testInput/zerofill_echo_0_120.png', 'jony/b_psnr_echo_0_120.png', 'johny/ssim_echo_0_120_crop2.png', 'psnr_ssim_echo_0_120_crop2.png', 'gt_echo_0_120_crop2.png'] 
 #takes in file paths for the images
 mainImages = [] #empty list for the images that will be displayed
 
+def getFileName(filepath):
+    return os.path.basename(filepath).split('/')[-1]
+#gets the filename because that is needed for the xlink:href in the svg
+
+"""
+CREATING IMAGES FOR SVG
+"""
 x, y = 0, 0
-for img in imagesToInput:
-    imgDict = {'width': '47.625', 'height': '47.625', 'xlink:href': img, 'x': str(x), 'y': str(y), "preserve_aspect_ratio":"none"} #set all images to the 180px by 180px
-    #the width and height of the image just changes the size, not the zoom so that information is not needed
+for img in imagePaths:
+    #gets the size of the image
+    image = Image.open(img)
+    width, height = image.size
+    
+    imgDict = {'width': str(width/pxTOmm), 
+               'height': str(height/pxTOmm), 
+               'xlink:href':  getFileName(inputFolder) + "\\" + getFileName(img), #fixes the issue described under inputFolder, should work for everything
+               'x': str(x), 
+               'y': str(y), 
+               "preserve_aspect_ratio":"none"}
     #each image is represented as a dictionary of its attributes
     mainImages.append(imgDict) #add the image to the list
     x+=float(imgDict["width"]) #increase the x position but NOT the y position
@@ -35,6 +69,9 @@ zoomedImages = [
     ]
 #in the future it might be relevant if the only input is the main image file path
 
+"""
+TOTAL WIDTH AND HEIGHT
+"""
 #finding the total width and height based on the images given
 def totalWidth(images):
     sumWidth = 0
@@ -51,14 +88,19 @@ def totalHeight(mainImg, zoomImg):
     sumHeight *= pxTOmm
     return sumHeight
 
-print(f"Total Width: {totalWidth(mainImages)}")
-print(f"Total Height: {totalHeight(mainImages, zoomedImages)}")
+tWidth = totalWidth(mainImages)
+tHeight = totalHeight(mainImages, zoomedImages)
+print(f"Total Width: {tWidth}")
+print(f"Total Height: {tHeight}")
 
+"""
+CREATING ROOT, NAMEDVIEW, AND LAYER
+"""
 # Create the root element
 svg = ET.Element('svg', {
-    'width': str(totalWidth(mainImages)),
-    'height': str(totalHeight(mainImages, zoomedImages)),
-    'viewBox': '0 0 238.12499 79.375005',
+    'width': str(tWidth),
+    'height': str(tHeight),
+    'viewBox': "0 0 " + str(tWidth/pxTOmm) + " " + str(tHeight/pxTOmm),
     'version': '1.1',
     'id': 'svg5',
     'xmlns:inkscape': 'http://www.inkscape.org/namespaces/inkscape',
@@ -99,17 +141,23 @@ layer = ET.SubElement(svg, 'g', {
     'id': 'layer1',
 })
 
+"""
+ADDING TO THE LAYER
+"""
 # Add images to the layer
 for img in mainImages:
     ET.SubElement(layer, 'image', img)
     
-for img in zoomedImages:
-    ET.SubElement(layer, "image", img)
-    
+# =============================================================================
+# for img in zoomedImages:
+#     ET.SubElement(layer, "image", img)
+# =============================================================================
+
+#display the file path/image name over the image
 for img in mainImages:
-    textVal = {"x": str(float(img["x"])+2), "y":str(float(img["y"])-10), "font_family":"Arial", "font-size":str(12/pxTOmm), "fill":"black", "textLength":str(float(img["width"])-2)}
+    textVal = {"x": str(float(img["x"])+2), "y":str(float(img["y"])-10), "font_family":"Arial", "font-size":str(12/pxTOmm), "fill":"black", "textLength":str(float(img["width"])-2), "lengthAdjust":"spacingAndGlyphs"}
     textToAdd = ET.SubElement(layer, "text", textVal)
-    textToAdd.text = img["xlink:href"]
+    textToAdd.text = getFileName(img["xlink:href"])
 
 
 # List of rectangles with their attributes
@@ -133,11 +181,15 @@ for rect in rectangles:
     #since style, width, and height are constant in all rects it doesn't make sense to include them in the rectangles dict
     #however, because of that, "x": rect["x"] (pretty much remmaking the rect dict) is necessary
 
+"""
+GETTING THE SVG/XML
+"""
 # Convert the XML tree to a string
 xml_str = ET.tostring(svg, encoding='utf-8', method='xml').decode('utf-8')
 
 # Write to an XML file
 with open('generated_comparison.svg', 'w') as f:
     f.write(xml_str)
-    
-print("ran")
+
+end = time.time()
+print(f"Took {end-start} seconds to run.")
