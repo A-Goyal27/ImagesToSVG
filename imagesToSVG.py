@@ -94,7 +94,8 @@ def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
     
 #creating the list of zoomed images
 zoomedImages = []
-zoomed_x, zoomed_y = 0, mainImages[0]["height"] #starting point
+imageTick = 0
+zoomed_x, zoomed_y = 0, mainImages[imageTick]["height"] #starting point
 nameTick = 0 #see below
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
@@ -105,6 +106,7 @@ def getZoomScale(zoomWidth, zoomHeight):
 zoomScale = getZoomScale(zoomWidth, zoomHeight)
 
 for img in imagePaths:
+    
     cropped_image = cropImage(img, zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
     name = "cropped_image" + str(nameTick) + getFileType(img)
@@ -119,20 +121,30 @@ for img in imagePaths:
                  }
     zoomedImages.append(zoomedDict)
     
+    #puts each zoom right under the respective image
+    zoomed_x+=float(mainImages[imageTick]["width"]) 
+    zoomed_y = mainImages[imageTick]["height"]
+    
     nameTick+=1
-    zoomed_x+=float(mainImages[0]["width"]) #puts each zoom right under the respective image
+    imageTick+=1
 
 #creating the red rectangles that show what part of the image was zoomed
 zoomWindows = []
-xOffset = mainImages[0]["width"] #where to put the next box so it is in the same place as the previous image
+imageTick = 0
+xOffset = float(mainImages[imageTick]["width"])
+totalOffset = 0 #where to put the next box so it is in the same place as the previous image
 for i in range(len(imagePaths)):
-    windowDict = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), 
+    windowDict = {"x":str((zoomXpos/pxTOmm + totalOffset)), 
               "y": str(zoomYpos/pxTOmm), 
               "width":str(zoomWidth/pxTOmm), 
               "height":str(zoomHeight/pxTOmm),
               'style': 'fill:none;stroke:#ff0032;stroke-width:0.3'
               } 
     zoomWindows.append(windowDict)
+    
+    #just makes it generalizable to different image sizes
+    totalOffset += xOffset
+    imageTick += 1
 
 """
 ***
