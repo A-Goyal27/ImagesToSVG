@@ -21,6 +21,9 @@ start = time.time()
 INPUT
 -inputFolder should take in the directory of the folder that contains the images that will be compared
     -it cannot specify which images to compare so the folder must ONLY contain the images that will be compared
+-zoom inputs
+    -zoomXpos, zoomYpos take in the starting position for the zoom window
+    -zoomWidth, zoomHeight specify the size of the zoom window
 """
 inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 #the files in the folder should have some some order ("abc", "123", etc.)
@@ -112,7 +115,12 @@ for img in imagePaths:
 zoomWindows = []
 xOffset = mainImages[0]["width"] #where to put the next box so it is in the same place as the previous image
 for i in range(len(imagePaths)):
-    window = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), "y": str(zoomYpos/pxTOmm), "width":str(zoomWidth/pxTOmm), "height":str(zoomHeight/pxTOmm)} 
+    window = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), 
+              "y": str(zoomYpos/pxTOmm), 
+              "width":str(zoomWidth/pxTOmm), 
+              "height":str(zoomHeight/pxTOmm),
+              'style': 'fill:none;stroke:#ff0032;stroke-width:0.3'
+              } 
     zoomWindows.append(window)
 
 """
@@ -136,17 +144,18 @@ def totalHeight(mainImg, zoomImg):
 
 tWidth = totalWidth(mainImages)
 tHeight = totalHeight(mainImages, zoomedImages)
-print(f"Total Width: {tWidth}")
-print(f"Total Height: {tHeight}")
+print(f"Total Width: {round(tWidth)}")
+print(f"Total Height: {round(tHeight)}")
 
 """
-CREATING ROOT, NAMEDVIEW, AND LAYER
+CREATING ROOT, NAMEDVIEW, AND LAYER ELEMENTS
 """
 # Create the root element
 svg = ET.Element('svg', {
     'width': str(tWidth),
     'height': str(tHeight),
     'viewBox': "0 0 " + str(tWidth/pxTOmm) + " " + str(tHeight/pxTOmm),
+    #adapt the width, height, and viewbox to match the total width and total height
     'version': '1.1',
     'id': 'svg5',
     'xmlns:inkscape': 'http://www.inkscape.org/namespaces/inkscape',
@@ -211,14 +220,8 @@ for img in mainImages:
 
 # Add rectangles to the layer
 for rect in zoomWindows:
-    ET.SubElement(layer, 'rect', {
-        'style': 'fill:none;stroke:#ff0032;stroke-width:0.3',
-        'width': rect['width'],
-        'height': rect["height"],
-        'x': rect['x'],
-        'y': rect['y'],
-    })
-    #since style, width, and height are constant in all rects it doesn't make sense to include them in the rectangles dict
+    ET.SubElement(layer, 'rect', rect)
+    #since style, are constant in all rects it doesn't make sense to include them in the rectangles dict
     #however, because of that, "x": rect["x"] (pretty much remmaking the rect dict) is necessary
 
 """
@@ -233,4 +236,4 @@ with open('generated_comparison.svg', 'w') as f:
 
 #displays the amount of time the program took to run, also acts as a way to see if the program ran successfully
 end = time.time()
-print(f"Took {end-start} seconds to run.")
+print(f"Took {round(end-start,3)} seconds to run.")
