@@ -27,8 +27,8 @@ inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless testInput\ is added, out\ wasn't needed for the other ones
 
 #where to zoom and how much to zoom in
-zoomXpos, zoomYpos = 50, 95 #pixels
-zoomWidth, zoomHeight = 100, 100 #pixels
+zoomXpos, zoomYpos = 190/4, 192/4 #pixels
+zoomWidth, zoomHeight = 190/2, 192/2 #pixels
 
 """
 FILE STUFF
@@ -43,6 +43,9 @@ imagePaths = sorted(imagePaths)
 def getFileName(filepath):
     return os.path.basename(filepath).split('/')[-1]
 #gets the filename because that is needed for the xlink:href in the svg
+
+def getFileType(filepath):
+    return os.path.splitext(filepath)[-1]
 
 """
 CREATING MAIN IMAGES FOR SVG
@@ -60,7 +63,8 @@ for img in imagePaths:
                'xlink:href':  getFileName(inputFolder) + "\\" + getFileName(img), #fixes the issue described under inputFolder, should work for everything
                'x': str(main_x), 
                'y': str(main_y), 
-               "preserve_aspect_ratio":"none"}
+               "preserve_aspect_ratio":"none"
+               }
     #each image is represented as a dictionary of its attributes
     mainImages.append(imgDict) #add the image to the list
     main_x+=float(imgDict["width"]) #increase the x position but NOT the y position
@@ -74,21 +78,41 @@ def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
     
-#the width and height should not = the width and height of the cropped image as that will be too small, it should be based on the crop tho, like 2x or smthn
-zoomedImages = [
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/zerofill_echo_0_120_crop.png', 'x': '15.875', 'y': mainImages[0]['height']}, 
-    #the y val should = the height of the main images, and 15.875 is 1/3 of 47.625
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_echo_0_120_crop.png', 'x': '63.5', 'y': mainImages[0]['height']},
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/ssim_echo_0_120_crop.png', 'x': '111.125', 'y': mainImages[0]['height']},
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/psnr_ssim_echo_0_120_crop.png', 'x': '158.75', 'y': mainImages[0]['height']},
-    {'width': '31.75', 'height': '31.75', 'xlink:href': 'out/gt_echo_0_120_crop.png', 'x': '206.375', 'y': mainImages[0]['height']},
-    ]
+#creating the list of zoomed images
+zoomedImages = []
+zoomed_x, zoomed_y = 0, mainImages[0]["height"] #starting point
+nameTick = 0 #see below
 
-#creating the red rectangles that show what part of the image was cropped
+#find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
+def getZoomScale(zoomWidth, zoomHeight):
+    baseZoom = 4/3
+    avg = (zoomWidth + zoomHeight)/2
+    return baseZoom * 95.5/avg
+zoomScale = getZoomScale(zoomWidth, zoomHeight)
+
+for img in imagePaths:
+    cropped_image = cropImage(img, zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
+    #each cropped image needs a different name
+    name = "cropped_image" + str(nameTick) + getFileType(img)
+    cropped_image.save(name) #save the image so it can be referenced
+    
+    zoomedImg = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
+                 "height":str(zoomScale * zoomHeight/pxTOmm),
+                 "xlink:href":name,
+                 "x":str(zoomed_x),
+                 "y":zoomed_y,
+                 "preserve_aspect_ratio":"none",
+                 }
+    zoomedImages.append(zoomedImg)
+    
+    nameTick+=1
+    zoomed_x+=float(mainImages[0]["width"]) #puts each zoom right under the respective image
+
+#creating the red rectangles that show what part of the image was zoomed
 zoomWindows = []
 xOffset = mainImages[0]["width"] #where to put the next box so it is in the same place as the previous image
 for i in range(len(imagePaths)):
-    window = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), "y": str(zoomYpos/pxTOmm)} 
+    window = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), "y": str(zoomYpos/pxTOmm), "width":str(zoomWidth/pxTOmm), "height":str(zoomHeight/pxTOmm)} 
     zoomWindows.append(window)
 
 """
@@ -189,8 +213,8 @@ for img in mainImages:
 for rect in zoomWindows:
     ET.SubElement(layer, 'rect', {
         'style': 'fill:none;stroke:#ff0032;stroke-width:0.3',
-        'width': '17.197916',
-        'height': '17.197916',
+        'width': rect['width'],
+        'height': rect["height"],
         'x': rect['x'],
         'y': rect['y'],
     })
