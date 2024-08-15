@@ -6,7 +6,9 @@ Created on Mon Aug 12 09:42:28 2024
 """
 
 """
+***
 PACKAGES AND CONSTANTS
+***
 """
 #the px : mm conversion is 1 : 0.26458333 or 480px/127mm
 pxTOmm = 480/127
@@ -18,23 +20,28 @@ import time
 start = time.time()
 
 """
+***
 INPUT
 -inputFolder should take in the directory of the folder that contains the images that will be compared
     -it cannot specify which images to compare so the folder must ONLY contain the images that will be compared
+    -images should be the same size as well
 -zoom inputs
     -zoomXpos, zoomYpos take in the starting position for the zoom window
     -zoomWidth, zoomHeight specify the size of the zoom window
+***
 """
 inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 #the files in the folder should have some some order ("abc", "123", etc.)
-#however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless testInput\ is added, out\ wasn't needed for the other ones
+#however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless the folder path is added which wasn't needed earlier
 
-#where to zoom and how much to zoom in
-zoomXpos, zoomYpos = 190/4, 192/4 #pixels
-zoomWidth, zoomHeight = 190/2, 192/2 #pixels
+#position and size of zoom window
+zoomXpos, zoomYpos = 190/2, 192/2 #pixels
+zoomWidth, zoomHeight = 60, 60 #pixels
 
 """
+***
 FILE STUFF
+***
 """
 #getting a list of the directories to the images
 imagePaths = []
@@ -51,7 +58,9 @@ def getFileType(filepath):
     return os.path.splitext(filepath)[-1]
 
 """
+***
 CREATING MAIN IMAGES FOR SVG
+***
 """
 #creates the main images
 mainImages = [] #empty list for the images that will be displayed
@@ -73,7 +82,9 @@ for img in imagePaths:
     main_x+=float(imgDict["width"]) #increase the x position but NOT the y position
 
 """
+***
 CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
+***
 """
 #crop the image - does the cropped image need to be saved or no?
 def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
@@ -99,14 +110,14 @@ for img in imagePaths:
     name = "cropped_image" + str(nameTick) + getFileType(img)
     cropped_image.save(name) #save the image so it can be referenced
     
-    zoomedImg = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
+    zoomedDict = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
                  "height":str(zoomScale * zoomHeight/pxTOmm),
                  "xlink:href":name,
                  "x":str(zoomed_x),
                  "y":zoomed_y,
                  "preserve_aspect_ratio":"none",
                  }
-    zoomedImages.append(zoomedImg)
+    zoomedImages.append(zoomedDict)
     
     nameTick+=1
     zoomed_x+=float(mainImages[0]["width"]) #puts each zoom right under the respective image
@@ -115,16 +126,18 @@ for img in imagePaths:
 zoomWindows = []
 xOffset = mainImages[0]["width"] #where to put the next box so it is in the same place as the previous image
 for i in range(len(imagePaths)):
-    window = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), 
+    windowDict = {"x":str((zoomXpos/pxTOmm +float(xOffset)*i)), 
               "y": str(zoomYpos/pxTOmm), 
               "width":str(zoomWidth/pxTOmm), 
               "height":str(zoomHeight/pxTOmm),
               'style': 'fill:none;stroke:#ff0032;stroke-width:0.3'
               } 
-    zoomWindows.append(window)
+    zoomWindows.append(windowDict)
 
 """
+***
 TOTAL WIDTH AND HEIGHT
+***
 """
 #finding the total width and height based on the images given
 def totalWidth(images):
@@ -148,7 +161,9 @@ print(f"Total Width: {round(tWidth)}")
 print(f"Total Height: {round(tHeight)}")
 
 """
+***
 CREATING ROOT, NAMEDVIEW, AND LAYER ELEMENTS
+***
 """
 # Create the root element
 svg = ET.Element('svg', {
@@ -197,7 +212,9 @@ layer = ET.SubElement(svg, 'g', {
 })
 
 """
+***
 ADDING TO THE LAYER
+***
 """
 # Add images to the layer
 for img in mainImages:
@@ -208,15 +225,17 @@ for img in zoomedImages:
 
 #display the file path/image name over the image
 for img in mainImages:
+    image_name = getFileName(img["xlink:href"])
+    textLengthOffset = len(image_name)**0.5
     textVal = {"x": str(float(img["x"])+2), 
-               "y":str(float(img["y"])-10), 
+               "y":str(float(img["y"])-7), 
                "font_family":"Arial", 
                "font-size":str(12/pxTOmm), 
                "fill":"black", 
-               "textLength":str(float(img["width"])-2), 
+               "textLength":str(float(img["width"])-textLengthOffset), #a.. length = 25
                "lengthAdjust":"spacingAndGlyphs"}
     textToAdd = ET.SubElement(layer, "text", textVal)
-    textToAdd.text = getFileName(img["xlink:href"])
+    textToAdd.text = image_name
 
 # Add rectangles to the layer
 for rect in zoomWindows:
@@ -225,7 +244,9 @@ for rect in zoomWindows:
     #however, because of that, "x": rect["x"] (pretty much remmaking the rect dict) is necessary
 
 """
-GETTING THE SVG/XML
+***
+GETTING THE SVG/XML and PDF
+***
 """
 # Convert the XML tree to a string
 xml_str = ET.tostring(svg, encoding='utf-8', method='xml').decode('utf-8')
@@ -236,4 +257,4 @@ with open('generated_comparison.svg', 'w') as f:
 
 #displays the amount of time the program took to run, also acts as a way to see if the program ran successfully
 end = time.time()
-print(f"Took {round(end-start,3)} seconds to run.")
+print(f"This program took {round(end-start,3)} seconds to run.")
