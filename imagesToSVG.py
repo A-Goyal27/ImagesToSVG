@@ -13,6 +13,8 @@ PACKAGES AND CONSTANTS
 #the px : mm conversion is 1 : 0.26458333 or 480px/127mm
 pxTOmm = 480/127
 
+import argparse
+import sys
 import xml.etree.ElementTree as ET
 import os
 from PIL import Image
@@ -32,15 +34,44 @@ INPUT
 ***
 """
 inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput" 
-#inputFolder = r"testInput" #i guess full directory isn't needed
-#the files in the folder should have some some order ("abc", "123", etc.)
-#however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless the folder path is added which wasn't needed earlier
+# =============================================================================
+# inputFolder = "testInput" #i guess full directory isn't needed
+# #the files in the folder should have some some order ("abc", "123", etc.)
+# #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless the folder path is added which wasn't needed earlier
+# 
+# #position and size of zoom window
+# 
+# usingPercentage = False
+# inputXzoom, inputYzoom = 190/2, 192/2 #pixels or percent
+# inputZoomWidth, inputZoomHeight = 60, 60 #pixels
+# inputXend, inputYend = 80, 80 #percent
+# =============================================================================
 
-#position and size of zoom window, take in percentages (should it take in end percentage or total percentage)
-usingPercentage = True
-inputXzoom, inputYzoom = 25, 50 #pixels or percent
-inputZoomWidth, inputZoomHeight = 60, 60 #pixels
-inputXend, inputYend = 80, 80 #percent
+#argparse stuff - getting the inputs
+parser = argparse.ArgumentParser(description="This script takes in a folder of images and zoom specifications. It outputs an SVG with the images side-by-side and the zoomed in version.")
+parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes") #hold on this one until you understand how to do it with the r in front of the filepath
+parser.add_argument("-uP","--usingPercentage", type=bool, default=False, help="Sets zoom units to percentage if 'True'. By default it is 'False'.")
+parser.add_argument("startXzoom", type=int, help="Starting x coord of zoom (can be percentage or exact pixel)")
+parser.add_argument("startYzoom", type=int, help="Starting y coord of zoom (can be percentage or exact pixel)")
+parser.add_argument("-wH","--zoomWidth", type=int, help="Width of zoom window (must be specified if using pixels)", default=None)
+parser.add_argument("-zH", "--zoomHeight", type=int, help="Height of zoom window (must be specified if using pixels)", default=None)
+parser.add_argument("-eX", "--endXzoom", type=int, help="Ending x coord of zoom window (must be specified if using percentages)", default=None)
+parser.add_argument("-eY", "--endYzoom", type=int, help="Ending y coord of zoom window (must be specified if using percentages)", default=None)
+
+
+
+args = parser.parse_args()
+usingPercentage = args.usingPercentage
+inputXzoom, inputYzoom = args.startXzoom, args.startYzoom
+inputZoomWidth, inputZoomHeight = args.zoomWidth, args.zoomHeight
+inputXend, inputYend = args.endXzoom, args.endYzoom
+inputFolder = args.inputFolder
+
+if ((inputZoomWidth == None or inputZoomHeight == None) and (inputXend == None or inputYend == None)):
+    print("The code needs zoom measurements. The args for the zoom measurements depends on which unit you are using. Run 'imagesToSVG.py -h' for more info.")
+    sys.exit()
+    #this will end the program if the necessary zoom measurements are not specified
+
 
 """
 ***
@@ -95,7 +126,7 @@ CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
 
 #convert percentage of image to exact pixel amount
 def percentToPix(imgFilepath,startXpercent, startYpercent, endXpercent, endYpercent):
-    #image = Image.open(imgFilepath) #ill leave this commented out just in case, but this shouldn't be needed since the images are already open in the previous code
+    image = Image.open(imgFilepath) #this is needed again
     imgWidth, imgHeight = image.size
     pixXstart, pixYstart = (startXpercent/100) * imgWidth, (startYpercent/100) * imgHeight
     pixXend, pixYend = (endXpercent/100) * imgWidth, (endYpercent/100) * imgHeight
@@ -104,7 +135,7 @@ def percentToPix(imgFilepath,startXpercent, startYpercent, endXpercent, endYperc
 
 #crop the image
 def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
-    #image = Image.open(imgFilepath) same thing as in percentToPix()
+    image = Image.open(imgFilepath) 
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
     
@@ -119,16 +150,16 @@ def getZoomScale(zoomWidth, zoomHeight):
     baseZoom = 4/3
     avg = (zoomWidth + zoomHeight)/2
     return baseZoom * 95.5/avg
-zoomScale = getZoomScale(inputZoomWidth, inputZoomHeight)
     
 
 for img in imagePaths:
-    
     #convert to pixels from percentage if needed
     if usingPercentage:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(img, inputXzoom, inputYzoom, inputXend, inputYend)
     else:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
+    
+    zoomScale = getZoomScale(zoomWidth, zoomHeight)
     
     cropped_image = cropImage(img, zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
