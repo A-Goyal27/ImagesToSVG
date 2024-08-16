@@ -30,11 +30,13 @@ INPUT
     -zoomWidth, zoomHeight specify the size of the zoom window
 ***
 """
-inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
+inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput" 
+#inputFolder = r"testInput" #i guess full directory isn't needed
 #the files in the folder should have some some order ("abc", "123", etc.)
 #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless the folder path is added which wasn't needed earlier
 
-#position and size of zoom window
+#position and size of zoom window, take in percentages
+usingPercetage = False
 zoomXpos, zoomYpos = 190/2, 192/2 #pixels
 zoomWidth, zoomHeight = 60, 60 #pixels
 
@@ -43,15 +45,17 @@ zoomWidth, zoomHeight = 60, 60 #pixels
 FILE STUFF
 ***
 """
+normalized_directory = os.path.normpath(inputFolder)
+
 #getting a list of the directories to the images
 imagePaths = []
-for name in os.listdir(inputFolder):
-    imagePaths.append(os.path.join(inputFolder, name))
+for name in os.listdir(normalized_directory):
+    imagePaths.append(os.path.join(normalized_directory, name))
     
 imagePaths = sorted(imagePaths)
 
 def getFileName(filepath):
-    return os.path.basename(filepath).split('/')[-1]
+    return os.path.basename(filepath).split('\\\\')[-1]
 #gets the filename because that is needed for the xlink:href in the svg
 
 def getFileType(filepath):
@@ -72,7 +76,7 @@ for img in imagePaths:
     
     imgDict = {'width': str(imgWidth/pxTOmm), 
                'height': str(imgHeight/pxTOmm), 
-               'xlink:href':  getFileName(inputFolder) + "\\" + getFileName(img), #fixes the issue described under inputFolder, should work for everything
+               'xlink:href':  getFileName(normalized_directory) + "\\" + getFileName(img), #fixes the issue described under inputFolder, should work for everything
                'x': str(main_x), 
                'y': str(main_y), 
                "preserve_aspect_ratio":"none"
@@ -86,9 +90,9 @@ for img in imagePaths:
 CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
 ***
 """
-#crop the image - does the cropped image need to be saved or no?
+#crop the image
 def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
-    image = Image.open(imgFilepath)
+    #image = Image.open(imgFilepath) #ill leave this commented out just in case, but this shouldn't be needed since the images are already open in the previous code
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
     
