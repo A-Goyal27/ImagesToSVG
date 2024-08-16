@@ -24,17 +24,11 @@ start = time.time()
 """
 ***
 INPUT
--inputFolder should take in the directory of the folder that contains the images that will be compared
-    -just the folder will work if the script and the folder are in the same directory
-    -it cannot specify which images to compare so the folder must ONLY contain the images that will be compared
-    -images should be the same size as well
--zoom inputs
-    -zoomXpos, zoomYpos take in the starting position for the zoom window
-    -zoomWidth, zoomHeight specify the size of the zoom window
+-the input folder must ONLY contain the images that will be compared
 ***
 """
-inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput" 
 # =============================================================================
+# inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput" 
 # inputFolder = "testInput" #i guess full directory isn't needed
 # #the files in the folder should have some some order ("abc", "123", etc.)
 # #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless the folder path is added which wasn't needed earlier
@@ -45,27 +39,29 @@ inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 # inputXzoom, inputYzoom = 190/2, 192/2 #pixels or percent
 # inputZoomWidth, inputZoomHeight = 60, 60 #pixels
 # inputXend, inputYend = 80, 80 #percent
+# zoomedPlace = "TL"
 # =============================================================================
 
-#argparse stuff - getting the inputs
+#argparse stuff - getting the inputs default run for me: run imagesToSVG.py testInput 95 96 -zW 60 -zH 60
 parser = argparse.ArgumentParser(description="This script takes in a folder of images and zoom specifications. It outputs an SVG with the images side-by-side and the zoomed in version.")
 parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes") #hold on this one until you understand how to do it with the r in front of the filepath
 parser.add_argument("-uP","--usingPercentage", type=bool, default=False, help="Sets zoom units to percentage if 'True'. By default it is 'False'.")
 parser.add_argument("startXzoom", type=int, help="Starting x coord of zoom (can be percentage or exact pixel)")
 parser.add_argument("startYzoom", type=int, help="Starting y coord of zoom (can be percentage or exact pixel)")
-parser.add_argument("-wH","--zoomWidth", type=int, help="Width of zoom window (must be specified if using pixels)", default=None)
+parser.add_argument("-zW","--zoomWidth", type=int, help="Width of zoom window (must be specified if using pixels)", default=None)
 parser.add_argument("-zH", "--zoomHeight", type=int, help="Height of zoom window (must be specified if using pixels)", default=None)
 parser.add_argument("-eX", "--endXzoom", type=int, help="Ending x coord of zoom window (must be specified if using percentages)", default=None)
 parser.add_argument("-eY", "--endYzoom", type=int, help="Ending y coord of zoom window (must be specified if using percentages)", default=None)
+parser.add_argument("-zP", "--zoomPlace", type=str, choices=["TL", "TR", "BL", "BR"], default=None, help="Specifies where to put the zoomed image. If left blank the image will appear under the main image. It can be Top Left (TL), Top Right (TR), Bottom Left (BL), or Bottom Right (BR).")
 
-
-
+#saving the inputs
 args = parser.parse_args()
 usingPercentage = args.usingPercentage
 inputXzoom, inputYzoom = args.startXzoom, args.startYzoom
 inputZoomWidth, inputZoomHeight = args.zoomWidth, args.zoomHeight
 inputXend, inputYend = args.endXzoom, args.endYzoom
 inputFolder = args.inputFolder
+zoomedPlace = args.zoomPlace
 
 if ((inputZoomWidth == None or inputZoomHeight == None) and (inputXend == None or inputYend == None)):
     print("The code needs zoom measurements. The args for the zoom measurements depends on which unit you are using. Run 'imagesToSVG.py -h' for more info.")
@@ -126,7 +122,7 @@ CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
 
 #convert percentage of image to exact pixel amount
 def percentToPix(imgFilepath,startXpercent, startYpercent, endXpercent, endYpercent):
-    image = Image.open(imgFilepath) #this is needed again
+    #image = Image.open(imgFilepath) #this is done in the loop where this command is needed
     imgWidth, imgHeight = image.size
     pixXstart, pixYstart = (startXpercent/100) * imgWidth, (startYpercent/100) * imgHeight
     pixXend, pixYend = (endXpercent/100) * imgWidth, (endYpercent/100) * imgHeight
@@ -135,14 +131,14 @@ def percentToPix(imgFilepath,startXpercent, startYpercent, endXpercent, endYperc
 
 #crop the image
 def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
-    image = Image.open(imgFilepath) 
+    #image = Image.open(imgFilepath) 
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
     
 #creating the list of zoomed images
 zoomedImages = []
 imageTick = 0
-zoomed_x, zoomed_y = 0, mainImages[imageTick]["height"] #starting point
+zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y technically doesn't need that but for consistency sake it is worth it
 nameTick = 0 #see below
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
@@ -150,34 +146,58 @@ def getZoomScale(zoomWidth, zoomHeight):
     baseZoom = 4/3
     avg = (zoomWidth + zoomHeight)/2
     return baseZoom * 95.5/avg
-    
 
 for img in imagePaths:
+    image = Image.open(img) 
     #convert to pixels from percentage if needed
     if usingPercentage:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(img, inputXzoom, inputYzoom, inputXend, inputYend)
     else:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
     
-    zoomScale = getZoomScale(zoomWidth, zoomHeight)
+    zoomScale = getZoomScale(zoomWidth, zoomHeight) #get the zoom scale
     
     cropped_image = cropImage(img, zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
     name = "cropped_image" + str(nameTick) + getFileType(img)
     cropped_image.save(name) #save the image so it can be referenced
     
+    if zoomedPlace == None: #by default the zoom just appears under the main images
+        pass
+    elif zoomedPlace == "TL":
+        #makes the zoom smaller and puts it in the top left
+        zoomScale /=2.6
+        zoomed_y = 0
+    elif zoomedPlace == "TR":
+        #makes the zoom smaller and puts it in the top right
+        zoomScale/=2.6
+        zoomed_x += image.size[0] - zoomScale * zoomWidth 
+        zoomed_y = 0
+    elif zoomedPlace == "BL":
+        #makes the zoom smaller and puts it in the bottom left
+        zoomScale /= 2.6
+        zoomed_y = image.size[1] - zoomScale * zoomHeight
+    elif zoomedPlace == "BR":
+        #makes the zoom smaller and puts it in the bottom right
+        zoomScale/=2.6
+        zoomed_x += image.size[0] - zoomScale * zoomWidth
+        zoomed_y = image.size[1] - zoomScale * zoomHeight
+    
     zoomedDict = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
                  "height":str(zoomScale * zoomHeight/pxTOmm),
                  "xlink:href":name,
-                 "x":str(zoomed_x),
-                 "y":zoomed_y,
+                 "x":str(zoomed_x/pxTOmm),
+                 "y":str(zoomed_y/pxTOmm),
                  "preserve_aspect_ratio":"none",
                  }
     zoomedImages.append(zoomedDict)
     
+    if zoomedPlace == "TR" or zoomedPlace == "BR":
+        zoomed_x -= image.size[0] - zoomScale * zoomWidth #the x offset for the right needs to be reset so we don't overadd
+    
     #puts each zoom right under the respective image
-    zoomed_x+=float(mainImages[imageTick]["width"]) 
-    zoomed_y = mainImages[imageTick]["height"]
+    zoomed_x+=float(mainImages[imageTick]["width"]) *pxTOmm
+    zoomed_y = float(mainImages[imageTick]["height"]) * pxTOmm
     
     nameTick+=1
     imageTick+=1
