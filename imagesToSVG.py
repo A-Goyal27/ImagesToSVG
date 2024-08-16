@@ -23,6 +23,7 @@ start = time.time()
 ***
 INPUT
 -inputFolder should take in the directory of the folder that contains the images that will be compared
+    -just the folder will work if the script and the folder are in the same directory
     -it cannot specify which images to compare so the folder must ONLY contain the images that will be compared
     -images should be the same size as well
 -zoom inputs
@@ -35,10 +36,11 @@ inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput"
 #the files in the folder should have some some order ("abc", "123", etc.)
 #however for some reason the renamed version of the file that includes the "order tag" (ex. a_filename) is not being found unless the folder path is added which wasn't needed earlier
 
-#position and size of zoom window, take in percentages
-usingPercetage = False
-zoomXpos, zoomYpos = 190/2, 192/2 #pixels
-zoomWidth, zoomHeight = 60, 60 #pixels
+#position and size of zoom window, take in percentages (should it take in end percentage or total percentage)
+usingPercentage = True
+inputXzoom, inputYzoom = 25, 50 #pixels or percent
+inputZoomWidth, inputZoomHeight = 60, 60 #pixels
+inputXend, inputYend = 80, 80 #percent
 
 """
 ***
@@ -90,9 +92,19 @@ for img in imagePaths:
 CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
 ***
 """
+
+#convert percentage of image to exact pixel amount
+def percentToPix(imgFilepath,startXpercent, startYpercent, endXpercent, endYpercent):
+    #image = Image.open(imgFilepath) #ill leave this commented out just in case, but this shouldn't be needed since the images are already open in the previous code
+    imgWidth, imgHeight = image.size
+    pixXstart, pixYstart = (startXpercent/100) * imgWidth, (startYpercent/100) * imgHeight
+    pixXend, pixYend = (endXpercent/100) * imgWidth, (endYpercent/100) * imgHeight
+    pixXsize, pixYsize = pixXend - pixXstart, pixYend-pixYstart
+    return pixXstart, pixYstart, pixXsize, pixYsize
+
 #crop the image
 def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
-    #image = Image.open(imgFilepath) #ill leave this commented out just in case, but this shouldn't be needed since the images are already open in the previous code
+    #image = Image.open(imgFilepath) same thing as in percentToPix()
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
     
@@ -107,9 +119,16 @@ def getZoomScale(zoomWidth, zoomHeight):
     baseZoom = 4/3
     avg = (zoomWidth + zoomHeight)/2
     return baseZoom * 95.5/avg
-zoomScale = getZoomScale(zoomWidth, zoomHeight)
+zoomScale = getZoomScale(inputZoomWidth, inputZoomHeight)
+    
 
 for img in imagePaths:
+    
+    #convert to pixels from percentage if needed
+    if usingPercentage:
+        zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(img, inputXzoom, inputYzoom, inputXend, inputYend)
+    else:
+        zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
     
     cropped_image = cropImage(img, zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
