@@ -10,9 +10,10 @@ Created on Mon Aug 12 09:42:28 2024
 PACKAGES AND CONSTANTS
 ***
 """
-#the px : mm conversion is 1 : 0.26458333 or 480px/127mm
+#the px : mm conversion is 1 : 0.26458333 or 480px/127mm, SVGs use mm by default
 pxTOmm = 480/127
 
+#packages
 import argparse
 import sys
 import xml.etree.ElementTree as ET
@@ -25,6 +26,7 @@ start = time.time()
 ***
 INPUT
 -the input folder must ONLY contain the images that will be compared
+-default run for ME: run imagesToSVG.py testInput 95 96 -zW 60 -zH 60
 ***
 """
 #hardcoded inputs
@@ -44,9 +46,8 @@ INPUT
 # =============================================================================
 
 #argparse stuff - getting the inputs 
-#default run for me: run imagesToSVG.py testInput 95 96 -zW 60 -zH 60
 parser = argparse.ArgumentParser(description="This script takes in a folder of images and zoom specifications. It outputs an SVG with the images side-by-side and the zoomed in version.")
-parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes") #hold on this one until you understand how to do it with the r in front of the filepath
+parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes")
 parser.add_argument("-uP","--usingPercentage", type=bool, default=False, help="Sets zoom units to percentage if 'True'. By default it is 'False'.")
 parser.add_argument("startXzoom", type=int, help="Starting x coord of zoom (can be percentage or exact pixel)")
 parser.add_argument("startYzoom", type=int, help="Starting y coord of zoom (can be percentage or exact pixel)")
@@ -76,7 +77,7 @@ if ((inputZoomWidth == None or inputZoomHeight == None) and (inputXend == None o
 FILE STUFF
 ***
 """
-normalized_directory = os.path.normpath(inputFolder)
+normalized_directory = os.path.normpath(inputFolder) #normalize filepath
 
 #getting a list of the directories to the images
 imagePaths = []
@@ -132,28 +133,31 @@ def percentToPix(startXpercent, startYpercent, endXpercent, endYpercent):
     return pixXstart, pixYstart, pixXsize, pixYsize
 
 #crop the image
-def cropImage(imgFilepath, cropXpos, cropYpos, cropWidth, cropHeight):
-    #image = Image.open(imgFilepath) 
+def cropImage(cropXpos, cropYpos, cropWidth, cropHeight):
+    #image = Image.open(imgFilepath)  #same as above
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
     
 #creating the list of zoomed images
 zoomedImages = []
 imageTick = 0
-zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y technically doesn't need that but for consistency sake it is worth it
+zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y technically doesn't need to be converted but for consistency it is helpful
 nameTick = 0 #see below
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
 def getZoomScale(zoomWidth, zoomHeight):
+    #most of these numbers are just a result of trial and error
     imgWidth, imgHeight = image.size
-    comparison= (imgWidth + imgHeight)/4
+    comparison= (imgWidth + imgHeight)/4 
     
     baseZoom = 4/3
     zoomAvg = (zoomWidth + zoomHeight)/2
     return baseZoom * comparison/zoomAvg
 
 for img in imagePaths:
+    #opens the image because all of the associated functions need the image open
     image = Image.open(img) 
+    
     #convert to pixels from percentage if needed
     if usingPercentage:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(inputXzoom, inputYzoom, inputXend, inputYend)
@@ -162,10 +166,11 @@ for img in imagePaths:
     
     zoomScale = getZoomScale(zoomWidth, zoomHeight) #get the zoom scale
     
-    cropped_image = cropImage(img, zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
+    cropped_image = cropImage(zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
     name = "cropped_image" + str(nameTick) + getFileType(img)
     cropped_image.save(name) #save the image so it can be referenced
+    nameTick+=1
     
     if zoomedPlace == None: #by default the zoom just appears under the main images
         pass
@@ -176,17 +181,17 @@ for img in imagePaths:
     elif zoomedPlace == "TR":
         #makes the zoom smaller and puts it in the top right
         zoomScale/=2.6
-        zoomed_x += image.size[0] - zoomScale * zoomWidth 
+        zoomed_x += image.size[0] - (zoomScale * zoomWidth) 
         zoomed_y = 0
     elif zoomedPlace == "BL":
         #makes the zoom smaller and puts it in the bottom left
         zoomScale /= 2.6
-        zoomed_y = image.size[1] - zoomScale * zoomHeight
+        zoomed_y = image.size[1] - (zoomScale * zoomHeight)
     elif zoomedPlace == "BR":
         #makes the zoom smaller and puts it in the bottom right
         zoomScale/=2.6
-        zoomed_x += image.size[0] - zoomScale * zoomWidth
-        zoomed_y = image.size[1] - zoomScale * zoomHeight
+        zoomed_x += image.size[0] - (zoomScale * zoomWidth)
+        zoomed_y = image.size[1] - (zoomScale * zoomHeight)
     
     zoomedDict = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
                  "height":str(zoomScale * zoomHeight/pxTOmm),
@@ -204,7 +209,6 @@ for img in imagePaths:
     zoomed_x+=float(mainImages[imageTick]["width"]) *pxTOmm
     zoomed_y = float(mainImages[imageTick]["height"]) * pxTOmm
     
-    nameTick+=1
     imageTick+=1
 
 #creating the red rectangles that show what part of the image was zoomed
@@ -212,7 +216,7 @@ zoomWindows = []
 imageTick = 0
 xOffset = float(mainImages[imageTick]["width"])
 totalOffset = 0 #where to put the next box so it is in the same place as the previous image
-for i in range(len(imagePaths)):
+for img in imagePaths:
     windowDict = {"x":str((zoomXpos/pxTOmm + totalOffset)), 
               "y": str(zoomYpos/pxTOmm), 
               "width":str(zoomWidth/pxTOmm), 
@@ -331,8 +335,6 @@ for img in mainImages:
 # Add rectangles to the layer
 for rect in zoomWindows:
     ET.SubElement(layer, 'rect', rect)
-    #since style, are constant in all rects it doesn't make sense to include them in the rectangles dict
-    #however, because of that, "x": rect["x"] (pretty much remmaking the rect dict) is necessary
 
 """
 ***
