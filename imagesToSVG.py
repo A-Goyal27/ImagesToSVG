@@ -42,7 +42,8 @@ INPUT
 # zoomedPlace = "TL"
 # =============================================================================
 
-#argparse stuff - getting the inputs default run for me: run imagesToSVG.py testInput 95 96 -zW 60 -zH 60
+#argparse stuff - getting the inputs 
+#default run for me: run imagesToSVG.py testInput 95 96 -zW 60 -zH 60
 parser = argparse.ArgumentParser(description="This script takes in a folder of images and zoom specifications. It outputs an SVG with the images side-by-side and the zoomed in version.")
 parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes") #hold on this one until you understand how to do it with the r in front of the filepath
 parser.add_argument("-uP","--usingPercentage", type=bool, default=False, help="Sets zoom units to percentage if 'True'. By default it is 'False'.")
