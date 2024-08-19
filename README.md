@@ -4,7 +4,7 @@ This script aims to make comparisons of images and zoomed versions quicker and e
 For instance, suppose you had a few different models that each generated a brain scan, and you wanted to compare them. This script will nicely line up the images side-by-side and also display a zoomed-in version for more precise comparison.
 
 ## Inputs
-- A folder containing the images that will be compared. The folder must ONLY contain the images that will be compared. The images should be in either .png or .jpg format. However, other filetypes should be supported as well.
+- A folder containing the images that will be compared. The folder must ONLY contain the images that will be compared. The images should be in either .png or .jpg format. However, other filetypes should be supported as well. The images will be sorted so it is recommend that they start with some sort of "order tag" (1, 2, 3; a, b, c; etc.)
 - Specifications of how to create the zoom window for the image.
 - Specifications of where to put the zoomed image, will be under the main image by default.
 
