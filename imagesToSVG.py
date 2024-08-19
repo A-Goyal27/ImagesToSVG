@@ -27,6 +27,7 @@ INPUT
 -the input folder must ONLY contain the images that will be compared
 ***
 """
+#hardcoded inputs
 # =============================================================================
 # inputFolder = r"C:\Users\aayan\OneDrive\Documents\CIG Projec\testInput" 
 # inputFolder = "testInput" #i guess full directory isn't needed
@@ -122,7 +123,7 @@ CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
 """
 
 #convert percentage of image to exact pixel amount
-def percentToPix(imgFilepath,startXpercent, startYpercent, endXpercent, endYpercent):
+def percentToPix(startXpercent, startYpercent, endXpercent, endYpercent):
     #image = Image.open(imgFilepath) #this is done in the loop where this command is needed
     imgWidth, imgHeight = image.size
     pixXstart, pixYstart = (startXpercent/100) * imgWidth, (startYpercent/100) * imgHeight
@@ -144,15 +145,18 @@ nameTick = 0 #see below
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
 def getZoomScale(zoomWidth, zoomHeight):
+    imgWidth, imgHeight = image.size
+    comparison= (imgWidth + imgHeight)/4
+    
     baseZoom = 4/3
-    avg = (zoomWidth + zoomHeight)/2
-    return baseZoom * 95.5/avg
+    zoomAvg = (zoomWidth + zoomHeight)/2
+    return baseZoom * comparison/zoomAvg
 
 for img in imagePaths:
     image = Image.open(img) 
     #convert to pixels from percentage if needed
     if usingPercentage:
-        zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(img, inputXzoom, inputYzoom, inputXend, inputYend)
+        zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(inputXzoom, inputYzoom, inputXend, inputYend)
     else:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
     
