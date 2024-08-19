@@ -1,1 +1,2 @@
-The goal of this script is to be able to take in multiple images (e.g. brain scans) and to output an svg file with them side-by-side for easy comparison. To run the code, use argparse syntax in the command line.
+# Images To SVG
+This script aims to make comparisons of images and zoomed versions quicker and easier.
