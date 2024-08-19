@@ -7,7 +7,7 @@ For instance, suppose you had a few different models that each generated a brain
 - Specifications of how to create the zoom window for the image.
 - Specifications of where to put the zoomed image, will be under the main image by default.
 ## Output
-- An .svg file with the images side-by-side and the zoomed images in the given location for easy comparison.
+- A .svg file with the images side-by-side and the zoomed images in the given location for easy comparison.
 ## Running the Code
 Depending on which console/terminal you use, run:
 ```
