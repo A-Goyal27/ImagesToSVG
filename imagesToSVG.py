@@ -140,19 +140,19 @@ def cropImage(cropXpos, cropYpos, cropWidth, cropHeight):
     
 #creating the list of zoomed images
 zoomedImages = []
+zoomBorders = [] #empty list for borders for the zoomed images (is only used if the image is placed)
 imageTick = 0
 zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y technically doesn't need to be converted but for consistency it is helpful
 nameTick = 0 #see below
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
-def getZoomScale(zoomWidth, zoomHeight):
+def getZoomScale(zoomWidth, zoomHeight): #will have the width be exactly half of the parent image
     #most of these numbers are just a result of trial and error
     imgWidth, imgHeight = image.size
     comparison= (imgWidth + imgHeight)/4 
     
-    baseZoom = 4/3
     zoomAvg = (zoomWidth + zoomHeight)/2
-    return baseZoom * comparison/zoomAvg
+    return comparison/zoomAvg
 
 for img in imagePaths:
     #opens the image because all of the associated functions need the image open
@@ -173,31 +173,38 @@ for img in imagePaths:
     nameTick+=1
     
     if zoomedPlace == None: #by default the zoom just appears under the main images
+        placedZoom = False #just a boolean for record keeping
         pass
-    elif zoomedPlace == "TL":
-        #makes the zoom smaller and puts it in the top left
-        zoomScale /=2.6
-        zoomed_y = 0
-    elif zoomedPlace == "TR":
-        #makes the zoom smaller and puts it in the top right
-        zoomScale/=2.6
-        zoomed_x += image.size[0] - (zoomScale * zoomWidth) 
-        zoomed_y = 0
-    elif zoomedPlace == "BL":
-        #makes the zoom smaller and puts it in the bottom left
-        zoomScale /= 2.6
-        zoomed_y = image.size[1] - (zoomScale * zoomHeight)
-    elif zoomedPlace == "BR":
-        #makes the zoom smaller and puts it in the bottom right
-        zoomScale/=2.6
-        zoomed_x += image.size[0] - (zoomScale * zoomWidth)
-        zoomed_y = image.size[1] - (zoomScale * zoomHeight)
+    else:
+        zoomScale /= 2.3
+        placedZoom = True
+        if zoomedPlace == "TL":
+            #makes the zoom smaller and puts it in the top left
+            zoomed_y = 0
+        elif zoomedPlace == "TR":
+            #makes the zoom smaller and puts it in the top right
+            zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1
+            zoomed_y = 0
+        elif zoomedPlace == "BL":
+            #makes the zoom smaller and puts it in the bottom left
+            zoomed_y = image.size[1] - (zoomScale * zoomHeight) - 1
+        elif zoomedPlace == "BR":
+            #makes the zoom smaller and puts it in the bottom right
+            zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1 
+            zoomed_y = image.size[1] - (zoomScale * zoomHeight) - 1
+        zoomBorder = {"x":str(zoomed_x/pxTOmm), 
+                  "y": str(zoomed_y/pxTOmm), 
+                  "width": str(zoomScale * (1+zoomWidth)/pxTOmm), 
+                  "height":str(zoomScale * (1+zoomHeight)/pxTOmm),
+                  'style': 'fill:none;stroke:#32dd22;stroke-width:0.3'
+                  } #add a little border around the zomed image so it is easier to see
+        zoomBorders.append(zoomBorder)
     
     zoomedDict = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
                  "height":str(zoomScale * zoomHeight/pxTOmm),
                  "xlink:href":name,
-                 "x":str(zoomed_x/pxTOmm),
-                 "y":str(zoomed_y/pxTOmm),
+                 "x":str((1+zoomed_x)/pxTOmm),
+                 "y":str((1+zoomed_y)/pxTOmm),
                  "preserve_aspect_ratio":"none",
                  }
     zoomedImages.append(zoomedDict)
@@ -229,6 +236,8 @@ for img in imagePaths:
     totalOffset += xOffset
     imageTick += 1
 
+
+
 """
 ***
 TOTAL WIDTH AND HEIGHT
@@ -245,7 +254,10 @@ def totalWidth(images):
 
 def totalHeight(mainImg, zoomImg):
     #this function assumes all images in a given group have the same height
-    sumHeight = float(mainImg[0]["height"]) + float(zoomImg[0]["height"])
+    if placedZoom:
+        sumHeight = float(mainImg[0]["height"]) + float(zoomImg[0]["height"])
+    else:
+        sumHeight = float(mainImg[0]["height"])
     
     sumHeight *= pxTOmm
     return sumHeight
@@ -335,6 +347,10 @@ for img in mainImages:
 # Add rectangles to the layer
 for rect in zoomWindows:
     ET.SubElement(layer, 'rect', rect)
+
+if len(zoomBorders) > 0:
+    for border in zoomBorders:
+        ET.SubElement(layer, "rect", border)
 
 """
 ***
