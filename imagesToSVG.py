@@ -20,6 +20,9 @@ import xml.etree.ElementTree as ET
 import os
 from PIL import Image
 import time
+import matplotlib.pyplot as plt
+from skimage import io, color
+import numpy as np
 start = time.time()
 
 """
@@ -47,7 +50,7 @@ INPUT
 
 #argparse stuff - getting the inputs 
 parser = argparse.ArgumentParser(description="This script takes in a folder of images and zoom specifications. It outputs an SVG with the images side-by-side and the zoomed in version.")
-parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes")
+parser.add_argument("inputFolder", type=str, help="Input the directory of the folder (or just the folder) of the images to be compared. Note-if inputting a directory: put the directory in quotes. Note-The ground truth should be the last file in the folder.")
 parser.add_argument("-uP","--usingPercentage", type=bool, default=False, help="Sets zoom units to percentage if 'True'. By default it is 'False'.")
 parser.add_argument("startXzoom", type=int, help="Starting x coord of zoom (can be percentage or exact pixel)")
 parser.add_argument("startYzoom", type=int, help="Starting y coord of zoom (can be percentage or exact pixel)")
@@ -141,6 +144,7 @@ def cropImage(cropXpos, cropYpos, cropWidth, cropHeight):
 #creating the list of zoomed images
 zoomedImages = []
 zoomBorders = [] #empty list for borders for the zoomed images (is only used if the image is placed)
+errorMaps = [] #empty list for the error maps
 imageTick = 0
 zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y technically doesn't need to be converted but for consistency it is helpful
 nameTick = 0 #see below
@@ -153,6 +157,23 @@ def getZoomScale(zoomWidth, zoomHeight): #will have the width be exactly half of
     
     zoomAvg = (zoomWidth + zoomHeight)/2
     return comparison/zoomAvg
+
+#will technically
+def getGTcropped(imageFilepath): #need to crop the GT image early for error maps
+    if usingPercentage:
+        zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(inputXzoom, inputYzoom, inputXend, inputYend)
+    else:
+        zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
+    
+    image = Image.open(imageFilepath)
+    crop_area = (zoomXpos, zoomYpos, zoomWidth+zoomXpos, zoomHeight+zoomYpos)
+    croppedGT = image.crop(crop_area)
+    name = "cropped_image" + str(len(imagePaths)-1) + ".png"
+    croppedGT.save(name)
+
+getGTcropped(imagePaths[-1])
+groundTruth = io.imread("cropped_image" + str(len(imagePaths)-1) + ".png")
+#assumes ground truth is the last image
 
 for img in imagePaths:
     #opens the image because all of the associated functions need the image open
@@ -168,9 +189,9 @@ for img in imagePaths:
     
     cropped_image = cropImage(zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
-    name = "cropped_image" + str(nameTick) + getFileType(img)
+    name = "cropped_image" + str(nameTick) + ".png"
     cropped_image.save(name) #save the image so it can be referenced
-    nameTick+=1
+    
     
     if zoomedPlace == None: #by default the zoom just appears under the main images
         placedZoom = False #just a boolean for record keeping
@@ -200,14 +221,47 @@ for img in imagePaths:
                   } #add a little border around the zomed image so it is easier to see
         zoomBorders.append(zoomBorder)
     
+    if placedZoom:
+        offset=1
+    else:
+        offset=0
+    
+    
     zoomedDict = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
                  "height":str(zoomScale * zoomHeight/pxTOmm),
                  "xlink:href":name,
-                 "x":str((1+zoomed_x)/pxTOmm),
-                 "y":str((1+zoomed_y)/pxTOmm),
+                 "x":str((offset+zoomed_x)/pxTOmm),
+                 "y":str((offset+zoomed_y)/pxTOmm),
                  "preserve_aspect_ratio":"none",
                  }
     zoomedImages.append(zoomedDict)
+    
+    #error maps only if the zoomed image isn't placed
+    if not placedZoom:
+        currentImage = io.imread(name)
+        
+        #convert to grayscale if needed
+        #if ----
+        error_map = np.abs(currentImage - groundTruth)
+        
+        # Normalize the error map
+        min_value = np.min(error_map)
+        max_value = np.max(error_map)
+    
+        normalized_error_map = (error_map - min_value) / (max_value - min_value)
+        
+        #save the error map
+        mapName = "error_map" + str(nameTick) +".png"
+        plt.imsave(mapName,normalized_error_map, cmap='coolwarm')
+        
+        errorMapDict = {"width":str(zoomScale*zoomWidth/pxTOmm),
+                        "height":str(zoomScale*zoomHeight/pxTOmm),
+                        "xlink:href":mapName,
+                        "x":str((offset+zoomed_x+zoomWidth*zoomScale)/pxTOmm),
+                        "y":str((offset+zoomed_y)/pxTOmm),
+                        "preserve_aspect_ratio":"none",
+                        }
+        errorMaps.append(errorMapDict)
     
     if zoomedPlace == "TR" or zoomedPlace == "BR":
         zoomed_x -= image.size[0] - zoomScale * zoomWidth #the x offset for the right needs to be reset so we don't overadd
@@ -216,7 +270,9 @@ for img in imagePaths:
     zoomed_x+=float(mainImages[imageTick]["width"]) *pxTOmm
     zoomed_y = float(mainImages[imageTick]["height"]) * pxTOmm
     
+    nameTick+=1
     imageTick+=1
+
 
 #creating the red rectangles that show what part of the image was zoomed
 zoomWindows = []
@@ -254,7 +310,7 @@ def totalWidth(images):
 
 def totalHeight(mainImg, zoomImg):
     #this function assumes all images in a given group have the same height
-    if placedZoom:
+    if not placedZoom:
         sumHeight = float(mainImg[0]["height"]) + float(zoomImg[0]["height"])
     else:
         sumHeight = float(mainImg[0]["height"])
@@ -328,6 +384,9 @@ for img in mainImages:
     ET.SubElement(layer, 'image', img)
     
 for img in zoomedImages:
+    ET.SubElement(layer, "image", img)
+    
+for img in errorMaps:
     ET.SubElement(layer, "image", img)
 
 #display the file path/image name over the image
