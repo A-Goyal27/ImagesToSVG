@@ -69,10 +69,10 @@ inputXend, inputYend = args.endXzoom, args.endYzoom
 inputFolder = args.inputFolder
 zoomedPlace = args.zoomPlace
 
+#this will end the program if the necessary zoom measurements are not specified
 if ((inputZoomWidth == None or inputZoomHeight == None) and (inputXend == None or inputYend == None)):
     print("The code needs zoom measurements. The args for the zoom measurements depends on which unit you are using. Run 'imagesToSVG.py -h' for more info.")
     sys.exit()
-    #this will end the program if the necessary zoom measurements are not specified
 
 
 """
@@ -80,7 +80,8 @@ if ((inputZoomWidth == None or inputZoomHeight == None) and (inputXend == None o
 FILE STUFF
 ***
 """
-normalized_directory = os.path.normpath(inputFolder) #normalize filepath
+#normalize filepath
+normalized_directory = os.path.normpath(inputFolder)
 
 #getting a list of the directories to the images
 imagePaths = []
@@ -89,9 +90,9 @@ for name in os.listdir(normalized_directory):
     
 imagePaths = sorted(imagePaths)
 
+#gets the filename because that is needed for the xlink:href in the svg
 def getFileName(filepath):
     return os.path.basename(filepath).split('\\\\')[-1]
-#gets the filename because that is needed for the xlink:href in the svg
 
 def getFileType(filepath):
     return os.path.splitext(filepath)[-1]
@@ -140,9 +141,8 @@ def cropImage(cropXpos, cropYpos, cropWidth, cropHeight):
     #image = Image.open(imgFilepath)  #same as above
     crop_area = (cropXpos, cropYpos, cropWidth+cropXpos, cropHeight+cropYpos)
     return image.crop(crop_area)
-    
-#creating the list of zoomed images
-zoomedImages = []
+
+zoomedImages = [] #creating the list of zoomed images
 zoomBorders = [] #empty list for borders for the zoomed images (is only used if the image is placed)
 errorMaps = [] #empty list for the error maps
 imageTick = 0
@@ -158,22 +158,25 @@ def getZoomScale(zoomWidth, zoomHeight): #will have the width be exactly half of
     zoomAvg = (zoomWidth + zoomHeight)/2
     return comparison/zoomAvg
 
-#will technically
-def getGTcropped(imageFilepath): #need to crop the GT image early for error maps
+#gets the ground truth zoom stuff figured out earlier so I can use it to compare for error maps, assumes GT is the last file in the folder
+def getGTcropped(): #just rehashing of code later in the program
     if usingPercentage:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(inputXzoom, inputYzoom, inputXend, inputYend)
     else:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
     
-    image = Image.open(imageFilepath)
+    image = Image.open(imagePaths[-1])
     crop_area = (zoomXpos, zoomYpos, zoomWidth+zoomXpos, zoomHeight+zoomYpos)
     croppedGT = image.crop(crop_area)
     name = "cropped_image" + str(len(imagePaths)-1) + ".png"
     croppedGT.save(name)
+    groundTruth = io.imread(name)
+    if image.mode == "RGB":
+        groundTruth = color.rgb2gray(groundTruth)
+    return groundTruth
 
-getGTcropped(imagePaths[-1])
-groundTruth = io.imread("cropped_image" + str(len(imagePaths)-1) + ".png")
-#assumes ground truth is the last image
+groundTruth = getGTcropped()
+
 
 for img in imagePaths:
     #opens the image because all of the associated functions need the image open
@@ -185,14 +188,16 @@ for img in imagePaths:
     else:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = inputXzoom, inputYzoom, inputZoomWidth, inputZoomHeight
     
-    zoomScale = getZoomScale(zoomWidth, zoomHeight) #get the zoom scale
+    #get the zoom scale
+    zoomScale = getZoomScale(zoomWidth, zoomHeight)
     
     cropped_image = cropImage(zoomXpos, zoomYpos, zoomWidth, zoomHeight) 
     #each cropped image needs a different name
     name = "cropped_image" + str(nameTick) + ".png"
-    cropped_image.save(name) #save the image so it can be referenced
+    #save the image so it can be referenced
+    cropped_image.save(name)
     
-    
+    #the zoom placement stuff
     if zoomedPlace == None: #by default the zoom just appears under the main images
         placedZoom = False #just a boolean for record keeping
         pass
@@ -211,8 +216,8 @@ for img in imagePaths:
             zoomed_y = image.size[1] - (zoomScale * zoomHeight) - 1
         elif zoomedPlace == "BR":
             #makes the zoom smaller and puts it in the bottom right
-            zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1 
-            zoomed_y = image.size[1] - (zoomScale * zoomHeight) - 1
+            zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1
+            zoomed_y = image.size[1] - (zoomScale * zoomHeight) -1
         zoomBorder = {"x":str(zoomed_x/pxTOmm), 
                   "y": str(zoomed_y/pxTOmm), 
                   "width": str(zoomScale * (1+zoomWidth)/pxTOmm), 
@@ -221,12 +226,16 @@ for img in imagePaths:
                   } #add a little border around the zomed image so it is easier to see
         zoomBorders.append(zoomBorder)
     
+    #the x offset for the right needs to be reset so we don't overadd
+    if zoomedPlace == "TR" or zoomedPlace == "BR":
+        zoomed_x -= image.size[0] - zoomScale * zoomWidth -1
+
     if placedZoom:
         offset=1
     else:
         offset=0
     
-    
+    #create and add zoomed image dict
     zoomedDict = {"width":str(zoomScale * zoomWidth/pxTOmm), #scale zoomed size so it makes sense with the zoom window
                  "height":str(zoomScale * zoomHeight/pxTOmm),
                  "xlink:href":name,
@@ -241,19 +250,25 @@ for img in imagePaths:
         currentImage = io.imread(name)
         
         #convert to grayscale if needed
-        #if ----
+        if image.mode == 'RGB': #checking if the parent image is grayscale because it is easier and if the parent is grayscale then the zoomed will be as well
+            currentImage = color.rgb2gray(currentImage)
+            
         error_map = np.abs(currentImage - groundTruth)
         
-        # Normalize the error map
-        min_value = np.min(error_map)
-        max_value = np.max(error_map)
-    
-        normalized_error_map = (error_map - min_value) / (max_value - min_value)
+        if name != "cropped_image" + str(len(imagePaths)-1) + ".png":
+            # Normalize the error map
+            min_value = np.min(error_map)
+            max_value = np.max(error_map)
+        
+            normalized_error_map = (error_map - min_value) / (max_value - min_value)
+        else:
+            normalized_error_map = error_map #I know it wouldn't be normalized in this case but for naming consistency this is how it is
         
         #save the error map
         mapName = "error_map" + str(nameTick) +".png"
         plt.imsave(mapName,normalized_error_map, cmap='coolwarm')
         
+        #create the error map dict for the svg and add it
         errorMapDict = {"width":str(zoomScale*zoomWidth/pxTOmm),
                         "height":str(zoomScale*zoomHeight/pxTOmm),
                         "xlink:href":mapName,
@@ -262,10 +277,7 @@ for img in imagePaths:
                         "preserve_aspect_ratio":"none",
                         }
         errorMaps.append(errorMapDict)
-    
-    if zoomedPlace == "TR" or zoomedPlace == "BR":
-        zoomed_x -= image.size[0] - zoomScale * zoomWidth #the x offset for the right needs to be reset so we don't overadd
-    
+        
     #puts each zoom right under the respective image
     zoomed_x+=float(mainImages[imageTick]["width"]) *pxTOmm
     zoomed_y = float(mainImages[imageTick]["height"]) * pxTOmm
