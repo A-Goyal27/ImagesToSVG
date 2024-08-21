@@ -106,12 +106,13 @@ CREATING MAIN IMAGES FOR SVG
 """
 #creates the main images
 mainImages = [] #empty list for the images that will be displayed
-main_x, main_y = 0, 0
+main_x, main_y = 0, 0 #starting positions
 for img in imagePaths:
     #gets the size of the image
     image = Image.open(img)
     imgWidth, imgHeight = image.size
     
+    #each image is represented as a dictionary of its attributes
     imgDict = {'width': str(imgWidth/pxTOmm), 
                'height': str(imgHeight/pxTOmm), 
                'xlink:href':  getFileName(normalized_directory) + "\\" + getFileName(img), #fixes the issue described under inputFolder, should work for everything
@@ -119,13 +120,13 @@ for img in imagePaths:
                'y': str(main_y), 
                "preserve_aspect_ratio":"none"
                }
-    #each image is represented as a dictionary of its attributes
+    
     mainImages.append(imgDict) #add the image to the list
     main_x+=float(imgDict["width"]) #increase the x position but NOT the y position
 
 """
 ***
-CREATING ZOOMED IMAGES AND RECTANGLES FOR SVG
+CREATING ZOOMED IMAGES, ERROR MAPS, AND RECTANGLES FOR SVG
 ***
 """
 
@@ -152,15 +153,15 @@ zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y tec
 nameTick = 0 #see below
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
-def getZoomScale(zoomWidth, zoomHeight): #will have the width be exactly half of the parent image
-    #most of these numbers are just a result of trial and error
+def getZoomScale(zoomWidth, zoomHeight): #will return a value to make sure the zoomed image's width is half of the main image
     imgWidth, imgHeight = image.size
-    comparison= (imgWidth + imgHeight)/4 
+    comparison= (imgWidth + imgHeight)/4 #comparison with the "mid-point" of this image
     
     return comparison/zoomWidth
 
 #gets the ground truth zoom stuff figured out earlier so I can use it to compare for error maps, assumes GT is the last file in the folder
-def getGTcropped(): #just rehashing of code later in the program
+def getGTcropped(): 
+    #just rehashing of code later in the program
     if usingPercentage:
         zoomXpos, zoomYpos, zoomWidth, zoomHeight = percentToPix(inputXzoom, inputYzoom, inputXend, inputYend)
     else:
@@ -176,12 +177,13 @@ def getGTcropped(): #just rehashing of code later in the program
         groundTruth = color.rgb2gray(groundTruth)
     return groundTruth
 
+#creating the color bar and saving it as a png
 def getColorBar(cmap):
     data = np.random.rand(10, 10) #just random data
     # Create a figure and axis for the color bar
     fig, ax = plt.subplots(figsize=(2, 5))  # Adjust the size to make it suitable for the color bar
     # Create a color map and a color bar based on the data
-    norm = plt.Normalize(vmin=np.min(data), vmax=np.max(data))  # Normalize based on data range
+    norm = plt.Normalize(vmin=np.min(data), vmax=np.max(data))  # Normalize based on data range (0-1)
     # Add the color bar to the figure
     colorbar = cbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation='vertical')
     # Save the color bar as a PNG file
@@ -191,6 +193,8 @@ groundTruth = getGTcropped()
 cmap = "Reds"
 getColorBar(cmap)
 
+#zoomed images, borders, and error maps
+#all done in one loop because they use similar x/y positions
 for img in imagePaths:
     #opens the image because all of the associated functions need the image open
     image = Image.open(img) 
@@ -231,14 +235,17 @@ for img in imagePaths:
             #makes the zoom smaller and puts it in the bottom right
             zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1
             zoomed_y = image.size[1] - (zoomScale * zoomHeight) -1
+        
+        #add a little border around the zomed image so it is easier to see
         zoomBorder = {"x":str(zoomed_x/pxTOmm), 
                   "y": str(zoomed_y/pxTOmm), 
                   "width": str(zoomScale * (1+zoomWidth)/pxTOmm), 
                   "height":str(zoomScale * (1+zoomHeight)/pxTOmm),
                   'style': 'fill:none;stroke:#32dd22;stroke-width:0.3'
-                  } #add a little border around the zomed image so it is easier to see
+                  }
         zoomBorders.append(zoomBorder)
-
+    
+    #spacing stuff
     if placedZoom:
         offset=1
     else:
@@ -265,10 +272,11 @@ for img in imagePaths:
         #convert to grayscale if needed
         if image.mode == 'RGB': #checking if the parent image is grayscale because it is easier and if the parent is grayscale then the zoomed will be as well
             currentImage = color.rgb2gray(currentImage)
-            
+        
+        #generate error map
         error_map = np.abs(currentImage - groundTruth)
         
-        if name != "cropped_image" + str(len(imagePaths)-1) + ".png":
+        if name != "cropped_image" + str(len(imagePaths)-1) + ".png": #it should only normalize if the images are different (otherwise you get a divide by 0 error)
             #Normalize the error map
             min_value = np.min(error_map)
             max_value = np.max(error_map)
@@ -289,6 +297,7 @@ for img in imagePaths:
                             "y":str((offset+zoomed_y)/pxTOmm),
                             "preserve_aspect_ratio":"meet",
                             }
+            #the color bar should have the same height as the zoom images but a scaled width
         
         #save the error map
         mapName = "error_map" + str(nameTick) +".png"
@@ -304,7 +313,7 @@ for img in imagePaths:
                         }
         errorMaps.append(errorMapDict)
         
-    #puts each zoom right under the respective image
+    #zoom spacing
     zoomed_x+=float(mainImages[imageTick]["width"]) *pxTOmm
     zoomed_y = float(mainImages[imageTick]["height"]) * pxTOmm
     
@@ -326,8 +335,7 @@ for img in imagePaths:
               } 
     zoomWindows.append(windowDict)
     
-    #just makes it generalizable to different image sizes
-    totalOffset += xOffset
+    totalOffset += xOffset #just makes it generalizable to different image sizes
     imageTick += 1
 
 
@@ -343,14 +351,14 @@ def totalWidth(images):
     for img in images:
       sumWidth += float(img["width"])
     
-    sumWidth *= pxTOmm #needs to end in pixels, here the images are stored with mm but if in the future the image unit is px, then this step is not needed
+    sumWidth *= pxTOmm #needs to end in pixels
     return sumWidth
 
 def totalHeight(mainImg, zoomImg):
     #this function assumes all images in a given group have the same height
     if not placedZoom:
         sumHeight = float(mainImg[0]["height"]) + float(zoomImg[0]["height"])
-    else:
+    else: #if the zoomed image is placed then it does not add height
         sumHeight = float(mainImg[0]["height"])
     
     sumHeight *= pxTOmm
@@ -368,10 +376,10 @@ CREATING ROOT, NAMEDVIEW, AND LAYER ELEMENTS
 """
 # Create the root element
 svg = ET.Element('svg', {
+    #adapt the width, height, and viewbox to match the total width and total height
     'width': str(tWidth),
     'height': str(tHeight),
     'viewBox': "0 0 " + str(tWidth/pxTOmm) + " " + str(tHeight/pxTOmm),
-    #adapt the width, height, and viewbox to match the total width and total height
     'version': '1.1',
     'id': 'svg5',
     'xmlns:inkscape': 'http://www.inkscape.org/namespaces/inkscape',
@@ -430,13 +438,13 @@ for img in errorMaps:
 #display the file path/image name over the image
 for img in mainImages:
     image_name = getFileName(img["xlink:href"])
-    textLengthOffset = len(image_name)**0.5
+    textLengthOffset = len(image_name)**0.5 #numbers are arbitrary
     textVal = {"x": str(float(img["x"])+2), 
                "y":str(float(img["y"])-7), 
                "font_family":"Arial", 
                "font-size":str(12/pxTOmm), 
                "fill":"black", 
-               "textLength":str(float(img["width"])-textLengthOffset), #a.. length = 25
+               "textLength":str(float(img["width"])-textLengthOffset), 
                "lengthAdjust":"spacingAndGlyphs"}
     textToAdd = ET.SubElement(layer, "text", textVal)
     textToAdd.text = image_name
@@ -445,7 +453,7 @@ for img in mainImages:
 for rect in zoomWindows:
     ET.SubElement(layer, 'rect', rect)
 
-if len(zoomBorders) > 0:
+if placedZoom:
     for border in zoomBorders:
         ET.SubElement(layer, "rect", border)
         
