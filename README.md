@@ -6,12 +6,12 @@ For instance, suppose you had a few different models that each generated a brain
 I ran this code on Python 3.9. Older versions should work as well.
 
 ## Inputs
-- A folder containing the images that will be compared. The folder must ONLY contain the images that will be compared. The images should be in either .png or .jpg format. However, other filetypes should be supported as well. The images will be sorted so it is recommend that they start with some sort of "order tag" (1, 2, 3; a, b, c; etc.)
+- A folder containing the images that will be compared. The folder must ONLY contain the images that will be compared. The images should be in either .png or .jpg format. However, other filetypes should be supported as well. The images will be sorted so it is recommend that they start with some sort of "order tag" (1, 2, 3; a, b, c; etc.). The ground truth should be ordered to be the last image in the folder.
 - Specifications of how to create the zoom window for the image.
 - Specifications of where to put the zoomed image, will be under the main image by default.
 
 ## Output
-- A .svg file with the images side-by-side and the zoomed images in the given location for easy comparison.
+- A .svg file with the images side-by-side and the zoomed images in the given location for easy comparison. The residuals between the zoomed images and the ground truth's zoomed image.
 
 ## Running the Code
 Depending on which console/terminal you use, run:
