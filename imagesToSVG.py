@@ -10,6 +10,7 @@ Created on Mon Aug 12 09:42:28 2024
 PACKAGES AND CONSTANTS
 ***
 """
+
 #the px : mm conversion is 1 : 0.26458333 or 480px/127mm, SVGs use mm by default
 pxTOmm = 480/127
 
@@ -21,6 +22,7 @@ import os
 from PIL import Image
 import time
 import matplotlib.pyplot as plt
+import matplotlib.colorbar as cbar
 from skimage import io, color
 import numpy as np
 start = time.time()
@@ -155,8 +157,7 @@ def getZoomScale(zoomWidth, zoomHeight): #will have the width be exactly half of
     imgWidth, imgHeight = image.size
     comparison= (imgWidth + imgHeight)/4 
     
-    zoomAvg = (zoomWidth + zoomHeight)/2
-    return comparison/zoomAvg
+    return comparison/zoomWidth
 
 #gets the ground truth zoom stuff figured out earlier so I can use it to compare for error maps, assumes GT is the last file in the folder
 def getGTcropped(): #just rehashing of code later in the program
@@ -175,8 +176,20 @@ def getGTcropped(): #just rehashing of code later in the program
         groundTruth = color.rgb2gray(groundTruth)
     return groundTruth
 
-groundTruth = getGTcropped()
+def getColorBar(cmap):
+    data = np.random.rand(10, 10) #just random data
+    # Create a figure and axis for the color bar
+    fig, ax = plt.subplots(figsize=(2, 5))  # Adjust the size to make it suitable for the color bar
+    # Create a color map and a color bar based on the data
+    norm = plt.Normalize(vmin=np.min(data), vmax=np.max(data))  # Normalize based on data range
+    # Add the color bar to the figure
+    colorbar = cbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation='vertical')
+    # Save the color bar as a PNG file
+    plt.savefig('color_bar.png', bbox_inches='tight', pad_inches=0.1)
 
+groundTruth = getGTcropped()
+cmap = "Reds"
+getColorBar(cmap)
 
 for img in imagePaths:
     #opens the image because all of the associated functions need the image open
@@ -225,10 +238,6 @@ for img in imagePaths:
                   'style': 'fill:none;stroke:#32dd22;stroke-width:0.3'
                   } #add a little border around the zomed image so it is easier to see
         zoomBorders.append(zoomBorder)
-    
-    #the x offset for the right needs to be reset so we don't overadd
-    if zoomedPlace == "TR" or zoomedPlace == "BR":
-        zoomed_x -= image.size[0] - zoomScale * zoomWidth -1
 
     if placedZoom:
         offset=1
@@ -245,6 +254,10 @@ for img in imagePaths:
                  }
     zoomedImages.append(zoomedDict)
     
+    #the x offset for the right needs to be reset so we don't overadd
+    if zoomedPlace == "TR" or zoomedPlace == "BR":
+        zoomed_x -= image.size[0] - zoomScale * zoomWidth -1
+    
     #error maps only if the zoomed image isn't placed
     if not placedZoom:
         currentImage = io.imread(name)
@@ -256,17 +269,30 @@ for img in imagePaths:
         error_map = np.abs(currentImage - groundTruth)
         
         if name != "cropped_image" + str(len(imagePaths)-1) + ".png":
-            # Normalize the error map
+            #Normalize the error map
             min_value = np.min(error_map)
             max_value = np.max(error_map)
         
             normalized_error_map = (error_map - min_value) / (max_value - min_value)
         else:
             normalized_error_map = error_map #I know it wouldn't be normalized in this case but for naming consistency this is how it is
+            
+            #getting the color bar size to be exact
+            cBar = Image.open("color_bar.png")
+            cBarW, cBarH = cBar.size
+            cBarRatio = cBarW/cBarH
+            #creating the color bar dict
+            color_bar = {"width":str(zoomScale*zoomHeight*cBarRatio/pxTOmm),
+                            "height":str(zoomScale*zoomHeight/pxTOmm),
+                            "xlink:href":"color_bar.png",
+                            "x":str((offset+zoomed_x+zoomWidth*zoomScale)/pxTOmm),
+                            "y":str((offset+zoomed_y)/pxTOmm),
+                            "preserve_aspect_ratio":"meet",
+                            }
         
         #save the error map
         mapName = "error_map" + str(nameTick) +".png"
-        plt.imsave(mapName,normalized_error_map, cmap='coolwarm')
+        plt.imsave(mapName,normalized_error_map, cmap=cmap)
         
         #create the error map dict for the svg and add it
         errorMapDict = {"width":str(zoomScale*zoomWidth/pxTOmm),
@@ -422,6 +448,10 @@ for rect in zoomWindows:
 if len(zoomBorders) > 0:
     for border in zoomBorders:
         ET.SubElement(layer, "rect", border)
+        
+#add color bar
+if not placedZoom:
+    ET.SubElement(layer, "image", color_bar)
 
 """
 ***
