@@ -11,7 +11,10 @@ I ran this code on Python 3.9. Older versions should work as well.
 - Specifications of where to put the zoomed image, will be under the main image by default.
 
 ## Output
-- A .svg file with the images side-by-side and the zoomed images in the given location for easy comparison. The residuals between the zoomed images and the ground truth's zoomed image.
+A .svg file with:
+- The images side-by-side.
+- The zoomed images in the given location.
+- The residuals between the zoomed images and the ground truth's zoomed image. (the color bar goes from 0, 1)
 
 ## Running the Code
 Depending on which console/terminal you use, run:
