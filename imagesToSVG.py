@@ -20,11 +20,11 @@ import sys
 import xml.etree.ElementTree as ET
 import os
 from PIL import Image
-import time
 import matplotlib.pyplot as plt
 import matplotlib.colorbar as cbar
 from skimage import io, color
 import numpy as np
+import time
 start = time.time()
 
 """
@@ -96,6 +96,7 @@ imagePaths = sorted(imagePaths)
 def getFileName(filepath):
     return os.path.basename(filepath).split('\\\\')[-1]
 
+#gets filetype
 def getFileType(filepath):
     return os.path.splitext(filepath)[-1]
 
@@ -150,10 +151,11 @@ zoomBorders = [] #empty list for borders for the zoomed images (is only used if 
 errorMaps = [] #empty list for the error maps
 imageTick = 0
 zoomed_x, zoomed_y = 0, float(mainImages[imageTick]["height"])*pxTOmm #the y technically doesn't need to be converted but for consistency it is helpful
-nameTick = 0 #see below
+nameTick = 0 
 
 #find a zoom scale value so that small zooms and big zooms all have a similar but scaled size in the end
 def getZoomScale(zoomWidth, zoomHeight): #will return a value to make sure the zoomed image's width is half of the main image
+    #image = Image.open(imgFilepath)  #same as above    
     imgWidth, imgHeight = image.size
     comparison= (imgWidth + imgHeight)/4 #comparison with the "mid-point" of this image
     
@@ -190,7 +192,7 @@ def getColorBar(cmap):
     plt.savefig('color_bar.png', bbox_inches='tight', pad_inches=0.1)
 
 groundTruth = getGTcropped()
-cmap = "Reds"
+cmap = "Reds" #colorway for the residuals
 getColorBar(cmap)
 
 #zoomed images, borders, and error maps
@@ -221,18 +223,18 @@ for img in imagePaths:
     else:
         zoomScale /= 2.3
         placedZoom = True
+        #makes the zoom smaller and puts it in the top left
         if zoomedPlace == "TL":
-            #makes the zoom smaller and puts it in the top left
             zoomed_y = 0
+        #makes the zoom smaller and puts it in the top right
         elif zoomedPlace == "TR":
-            #makes the zoom smaller and puts it in the top right
             zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1
             zoomed_y = 0
+        #makes the zoom smaller and puts it in the bottom left
         elif zoomedPlace == "BL":
-            #makes the zoom smaller and puts it in the bottom left
             zoomed_y = image.size[1] - (zoomScale * zoomHeight) - 1
+        #makes the zoom smaller and puts it in the bottom right
         elif zoomedPlace == "BR":
-            #makes the zoom smaller and puts it in the bottom right
             zoomed_x += image.size[0] - (zoomScale * zoomWidth) -1
             zoomed_y = image.size[1] - (zoomScale * zoomHeight) -1
         
@@ -276,8 +278,8 @@ for img in imagePaths:
         #generate error map
         error_map = np.abs(currentImage - groundTruth)
         
+        #Normalize the error map
         if name != "cropped_image" + str(len(imagePaths)-1) + ".png": #it should only normalize if the images are different (otherwise you get a divide by 0 error)
-            #Normalize the error map
             min_value = np.min(error_map)
             max_value = np.max(error_map)
         
@@ -364,10 +366,10 @@ def totalHeight(mainImg, zoomImg):
     sumHeight *= pxTOmm
     return sumHeight
 
-tWidth = totalWidth(mainImages)
-tHeight = totalHeight(mainImages, zoomedImages)
-print(f"Total Width: {round(tWidth)}")
-print(f"Total Height: {round(tHeight)}")
+tWidth = round(totalWidth(mainImages))
+tHeight = round(totalHeight(mainImages, zoomedImages))
+print(f"Total Width: {tWidth}")
+print(f"Total Height: {tHeight}")
 
 """
 ***
