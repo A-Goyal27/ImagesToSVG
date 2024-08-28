@@ -187,7 +187,7 @@ def getColorBar(cmap):
     # Create a color map and a color bar based on the data
     norm = plt.Normalize(vmin=np.min(data), vmax=np.max(data))  # Normalize based on data range (0-1)
     # Add the color bar to the figure
-    colorbar = cbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation='vertical')
+    cbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation='vertical')
     # Save the color bar as a PNG file
     plt.savefig('color_bar.png', bbox_inches='tight', pad_inches=0.1)
 
